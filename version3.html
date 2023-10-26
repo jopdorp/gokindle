@@ -1,146 +1,213 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <title>Go Game</title>
     <style>
-        #board { position: relative; width: 380px; height: 380px; border: 1px solid #000; }
-        .intersection { position: absolute; width: 20px; height: 20px; }
-        .stone { position: absolute; width: 20px; height: 20px; border-radius: 50%; }
+        .board {
+            width: 570px;
+            height: 570px;
+            border: 1px solid #000;
+            position: relative;
+            background-color: #DDC;
+            margin: 30px;
+        }
+
+        .line {
+            position: absolute;
+            background-color: #000;
+        }
+
+        .stone {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .black {
+            background-color: #000;
+        }
+
+        .white {
+            background-color: #fff;
+            border: 1px solid #000;
+        }
     </style>
 </head>
 <body>
-    <div id="board"></div>
+    <div class="board" id="board"></div>
+
     <script>
-        var boardElement = document.getElementById('board');
-        var boardMatrix = Array.from(Array(19), () => Array(19).fill(null));
-        var uf = new UnionFind();
-        var koPoint = null;
-        var turn = 'black';
-
-        // Render the board
-        for (var y = 0; y < 19; y++) {
-            for (var x = 0; x < 19; x++) {
-                var intersection = document.createElement('div');
-                intersection.className = 'intersection';
-                intersection.style.left = x * 20 + 'px';
-                intersection.style.top = y * 20 + 'px';
-                intersection.dataset.x = x;
-                intersection.dataset.y = y;
-                boardElement.appendChild(intersection);
+        class UnionFind {
+            constructor() {
+                this.parent = {};
+                this.rank = {};
+                this.liberties = {};
+                this.color = {};
             }
-        }
 
-        // Define the UnionFind class (as previously described)
-
-        // ... (Paste the UnionFind class definition here)
-// A simplified Union-Find data structure
-class UnionFind {
-    constructor() {
-        this.parent = {};
-        this.rank = {};
-        this.liberties = {};
-    }
-
-    find(x) {
-        if(this.parent[x] !== x) {
-            this.parent[x] = this.find(this.parent[x]);
-        }
-        return this.parent[x];
-    }
-
-    union(x, y) {
-        var rootX = this.find(x);
-        var rootY = this.find(y);
-
-        if(rootX === rootY) return;
-
-        if(this.rank[rootX] > this.rank[rootY]) {
-            this.parent[rootY] = rootX;
-            this.liberties[rootX] += this.liberties[rootY];
-        } else {
-            this.parent[rootX] = rootY;
-            this.liberties[rootY] += this.liberties[rootX];
-            if(this.rank[rootX] === this.rank[rootY]) {
-                this.rank[rootY]++;
+            find(x) {
+                if (this.parent[x] !== x) {
+                    this.parent[x] = this.find(this.parent[x]);
+                }
+                return this.parent[x];
             }
-        }
-    }
 
-    addStone(x, y, neighbors) {
-        var id = x + ',' + y;
-        this.parent[id] = id;
-        this.rank[id] = 0;
-        this.liberties[id] = 0;
-
-        for(var neighbor of neighbors) {
-            if(this.parent[neighbor]) {
-                this.union(id, neighbor);
-            }
-        }
-    }
-
-    removeGroup(x, y) {
-        var root = this.find(x + ',' + y);
-        for(var id in this.parent) {
-            if(this.find(id) === root) {
-                delete this.parent[id];
-                // Remove the stone from the board as well
-            }
-        }
-    }
-}
-
-var uf = new UnionFind();
-
-        function getNeighbors(x, y) {
-            var directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
-            var neighbors = [];
-            for (var i = 0; i < directions.length; i++) {
-                var newX = x + directions[i][0];
-                var newY = y + directions[i][1];
-                if (newX >= 0 && newY >= 0 && newX < 19 && newY < 19) {
-                    neighbors.push([newX, newY]);
+            union(x, y) {
+                var rootX = this.find(x);
+                var rootY = this.find(y);
+                if (rootX === rootY) return;
+                if (this.rank[rootX] > this.rank[rootY]) {
+                    this.parent[rootY] = rootX;
+                    this.liberties[rootX] += this.liberties[rootY];
+                } else {
+                    this.parent[rootX] = rootY;
+                    this.liberties[rootY] += this.liberties[rootX];
+                    if (this.rank[rootX] === this.rank[rootY]) {
+                        this.rank[rootY]++;
+                    }
                 }
             }
+
+            addStone(x, y, color, neighbors) {
+                var id = x + ',' + y;
+                this.parent[id] = id;
+                this.rank[id] = 0;
+                this.liberties[id] = 4 - neighbors.length;
+                this.color[id] = color;
+                for (var neighbor of neighbors) {
+                    var neighborId = neighbor.join(',');
+                    if (this.parent[neighborId]) {
+                        this.union(id, neighborId);
+                    }
+                }
+            }
+
+            removeGroup(x, y) {
+                var root = this.find(x + ',' + y);
+                for (var id in this.parent) {
+                    if (this.find(id) === root) {
+                        delete this.parent[id];
+                        var coordinates = id.split(',');
+                        var x = parseInt(coordinates[0]);
+                        var y = parseInt(coordinates[1]);
+                        var stone = document.querySelector('.stone[style*="top: ' + (x * cellSize) + 'px"][style*="left: ' + (y * cellSize) + 'px"]');
+                        if (stone) board.removeChild(stone);
+                    }
+                }
+            }
+        }
+
+        var boardSize = 19;
+        var cellSize = 30;
+        var board = document.getElementById('board');
+        var currentPlayer = 'black';
+        var boardState = [];
+        var lastBoardState = null;
+        var lastMoveKo = null;
+        var uf = new UnionFind();
+
+        /* ... existing setup code ... */
+
+        for (var i = 0; i < boardSize; i++) {
+            boardState[i] = [];
+            for (var j = 0; j < boardSize; j++) {
+                boardState[i][j] = null;
+                // Drawing the board lines
+                if (j === 0) {
+                    var verticalLine = document.createElement('div');
+                    verticalLine.className = 'line';
+                    verticalLine.style.width = '1px';
+                    verticalLine.style.height = (boardSize * cellSize) + 'px';
+                    verticalLine.style.left = (i * cellSize) + 'px';
+                    verticalLine.style.top = '0';
+                    board.appendChild(verticalLine);
+                }
+                
+                if (i === 0) {
+                    var horizontalLine = document.createElement('div');
+                    horizontalLine.className = 'line';
+                    horizontalLine.style.height = '1px';
+                    horizontalLine.style.width = (boardSize * cellSize) + 'px';
+                    horizontalLine.style.top = (j * cellSize) + 'px';
+                    horizontalLine.style.left = '0';
+                    board.appendChild(horizontalLine);
+                }
+            }
+        }
+        
+        board.addEventListener('click', function (e) {
+            var rect = board.getBoundingClientRect();
+            var x = e.clientX - rect.left;
+            var y = e.clientY - rect.top;
+            var i = Math.floor(y / cellSize);
+            var j = Math.floor(x / cellSize);
+            placeStone(i, j, currentPlayer);
+        });
+
+        function getNeighbors(x, y) {
+            var neighbors = [];
+            if (x > 0) neighbors.push([x - 1, y]);
+            if (x < boardSize - 1) neighbors.push([x + 1, y]);
+            if (y > 0) neighbors.push([x, y - 1]);
+            if (y < boardSize - 1) neighbors.push([x, y + 1]);
             return neighbors;
         }
 
+        function getStoneColor(position) {
+            var x = position[0];
+            var y = position[1];
+            return boardState[x][y];
+        }
+
         function placeStone(x, y, color) {
-            var id = x + ',' + y;
-            if (boardMatrix[y][x] || koPoint === id) return false;  // Intersection is occupied or Ko point
+            if (boardState[x][y] !== null) return;
+            var koPosition = x + ',' + y;
+            if (lastMoveKo === koPosition) return;  // Prevent Ko
 
             var neighbors = getNeighbors(x, y);
-            uf.addStone(x, y, neighbors);
+            uf.addStone(x, y, color, neighbors);
+
+            var stone = document.createElement('div');
+            stone.className = 'stone ' + color;
+            stone.style.top = (x * cellSize) + 'px';
+            stone.style.left = (y * cellSize) + 'px';
+            board.appendChild(stone);
+
+            boardState[x][y] = color;
 
             var captured = false;
+            var singleCapture = false;
+            var capturedPosition = null;
             for (var neighbor of neighbors) {
-                var neighborColor = boardMatrix[neighbor[1]][neighbor[0]];
+                var neighborColor = getStoneColor(neighbor);
                 if (neighborColor && neighborColor !== color) {
                     var root = uf.find(neighbor.join(','));
                     if (uf.liberties[root] === 0) {
                         uf.removeGroup(neighbor[0], neighbor[1]);
                         captured = true;
+                        singleCapture = !singleCapture;  // Toggle for each capture
+                        capturedPosition = neighbor;
                     }
                 }
             }
 
-            var newRoot = uf.find(id);
-            if (!captured && uf.liberties[newRoot] === 0) {
-                uf.removeGroup(x, y);  // Suicide move, remove the newly placed stone
-                return false;
+            var selfRoot = uf.find(x + ',' + y);
+            if (!captured && uf.liberties[selfRoot] === 0) {
+                // No-suicide rule: remove the placed stone
+                uf.removeGroup(x, y);
+                return;
             }
 
-            boardMatrix[y][x] = color;
-            koPoint = captured ? id : null;
-            turn = (color === 'black') ? 'white' : 'black';
-            return true;
-        }
+            lastMoveKo = singleCapture ? capturedPosition.join(',') : null;
 
-        boardElement.addEventListener('click', function(e) {
-            var x = parseInt(e.target.dataset.x, 10);
-            var y = parseInt(e.target.dataset.y, 10);
-            if (isNaN(x) || isNaN(y)) return;  // Clicked outside a valid intersection
-            placeStone(x, y, turn);
-        });
+            currentPlayer = (color === 'black') ? 'white' : 'black';
+        }
     </script>
 </body>
 </html>
+    

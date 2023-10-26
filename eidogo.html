@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embedded Eidogo Board</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jkk/eidogo@master/player/css/eidogo.css">
+    <style>
+        #player-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #myPlayer .viewer {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="player-container">
+        <div id="myPlayer"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/gh/jkk/eidogo@master/player/js/eidogo.js"></script>
+    <script>
+        window.onload = function() {
+            var player = new eidogo.Player({
+                container: 'myPlayer',
+                theme: 'compact',
+                blankBoard: true,
+                ui: 'image'
+            });
+        }
+    </script>
+</body>
+</html>

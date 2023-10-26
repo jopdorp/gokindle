@@ -74,18 +74,21 @@
             }
 
             addStone(x, y, color, neighbors) {
-                var id = x + ',' + y;
-                this.parent[id] = id;
-                this.rank[id] = 0;
-                this.liberties[id] = 4 - neighbors.length;
-                this.color[id] = color;
-                for (var neighbor of neighbors) {
-                    var neighborId = neighbor.join(',');
-                    if (this.parent[neighborId]) {
-                        this.union(id, neighborId);
-                    }
-                }
-            }
+    var id = x + ',' + y;
+    this.parent[id] = id;
+    this.rank[id] = 0;
+    this.liberties[id] = 0;  // Initialize liberties to 0
+    this.color[id] = color;
+    for (var neighbor of neighbors) {
+        var neighborId = neighbor.join(',');
+        if (!boardState[neighbor[0]][neighbor[1]]) {
+            this.liberties[id]++;  // Increment liberties for each empty neighbor
+        } else if (this.parent[neighborId]) {
+            this.union(id, neighborId);
+        }
+    }
+}
+
 
             removeGroup(x, y) {
                 var root = this.find(x + ',' + y);

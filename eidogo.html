@@ -26,14 +26,14 @@
     <script src="https://cdn.jsdelivr.net/gh/jkk/eidogo@master/player/js/mootools.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/jkk/eidogo@master/player/js/player.js"></script>
     <script>
-        window.onload = function() {
-            var player = new eidogo.Player({
-                container: 'myPlayer',
-                theme: 'compact',
-                blankBoard: true,
-                ui: 'image'
-            });
-        }
+    (function() {
+        window.player = new eidogo.Player({
+            container:       "player-container",
+            theme:           "compact",
+            sgfUrl:          "sgf/blank.sgf",
+            enableShortcuts: true
+        });    
+    })();
     </script>
 </body>
 </html>

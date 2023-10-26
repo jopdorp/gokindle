@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Go Game</title>
+    <style>
+        .board {
+            width: 570px;
+            height: 570px;
+            border: 1px solid #000;
+            position: relative;
+            background-color: #DDC;
+            margin: 30px;
+        }
+
+        .line {
+            position: absolute;
+            background-color: #000;
+        }
+
+        .stone {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .black {
+            background-color: #000;
+        }
+
+        .white {
+            background-color: #fff;
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="board" id="board"></div>
+
+    <script>
+        var boardSize = 19;
+        var cellSize = 30;
+        var board = document.getElementById('board');
+        var currentPlayer = 'black';
+        var boardState = [];
+        var lastBoardState = null;
+
+        for (var i = 0; i < boardSize; i++) {
+            boardState[i] = [];
+            for (var j = 0; j < boardSize; j++) {
+                boardState[i][j] = null;
+
+                // Drawing the board lines
+                if (j === 0) {
+                    var verticalLine = document.createElement('div');
+                    verticalLine.className = 'line';
+                    verticalLine.style.width = '1px';
+                    verticalLine.style.height = (boardSize * cellSize) + 'px';
+                    verticalLine.style.left = (i * cellSize) + 'px';
+                    verticalLine.style.top = '0';
+                    board.appendChild(verticalLine);
+                }
+
+                if (i === 0) {
+                    var horizontalLine = document.createElement('div');
+                    horizontalLine.className = 'line';
+                    horizontalLine.style.height = '1px';
+                    horizontalLine.style.width = (boardSize * cellSize) + 'px';
+                    horizontalLine.style.top = (j * cellSize) + 'px';
+                    horizontalLine.style.left = '0';
+                    board.appendChild(horizontalLine);
+                }
+
+                // Placing stones
+                (function(i, j) {
+                    board.addEventListener('click', function(e) {
+                        var rect = board.getBoundingClientRect();
+                        var x = e.clientX - rect.left;
+                        var y = e.clientY - rect.top;
+                        if (Math.abs(x - j * cellSize) <= cellSize / 2 && Math.abs(y - i * cellSize) <= cellSize / 2) {
+                            placeStone(i, j, currentPlayer);
+                        }
+                    });
+                })(i, j);
+            }
+        }
+
+        function placeStone(x, y, color) {
+            if (boardState[x][y] !== null) return;
+
+            // Clone current state for ko rule check
+            var tempState = JSON.parse(JSON.stringify(boardState));
+
+            boardState[x][y] = color;
+
+            var captures = checkCaptures(x, y, color);
+
+            if (captures === 0 && hasLiberties(x, y, [], color) === 0) {
+                // Suicide move
+                boardState = tempState;
+                return;
+            }
+
+            var stone = document.createElement('div');
+            stone.className = 'stone ' + color;
+            stone.style.top = (x * cellSize) + 'px';
+            stone.style.left = (y * cellSize) + 'px';
+            board.appendChild(stone);
+
+            currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
+
+            // Ko rule: Check if the new board state is the same as the last state
+            if (lastBoardState && JSON.stringify(boardState) === JSON.stringify(lastBoardState)) {
+                board.removeChild(stone);
+                boardState = tempState;
+                currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';  // switch back
+                return;
+            }
+
+            lastBoardState = tempState;
+        }
+
+        function checkCaptures(x, y, color) {
+            var captures = 0;
+            var oppositeColor = (color === 'black') ? 'white' : 'black';
+            var directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+            for (var i = 0; i < directions.length; i++) {
+                var newX = x + directions[i][0];
+                var newY = y + directions[i][1];
+
+                if (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize && boardState[newX][newY] === oppositeColor) {
+                    if (hasLiberties(newX, newY, [], oppositeColor) === 0) {
+                        removeStones(newX, newY, oppositeColor);
+                        captures++;
+                    }
+                }
+            }
+
+            return captures;
+        }
+
+        function hasLiberties(x, y, visited, color) {
+            if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return 0;
+
+            if (visited.some(function(point) { return point[0] === x && point[1] === y; })) return 0;
+
+            if (boardState[x][y] === null) return 1;
+
+            if (boardState[x][y] !== color) return 0;
+
+            visited.push([x, y]);
+
+            return hasLiberties(x - 1, y, visited, color) ||
+                   hasLiberties(x + 1, y, visited, color) ||
+                   hasLiberties(x, y - 1, visited, color) ||
+                   hasLiberties(x, y + 1, visited, color);
+        }
+
+        function removeStones(x, y, color) {
+            boardState[x][y] = null;
+
+            var stoneElements = board.querySelectorAll('.stone.' + color);
+            for (var i = 0; i < stoneElements.length; i++) {
+                if (stoneElements[i].style.top === (x * cellSize) + 'px' && stoneElements[i].style.left === (y * cellSize) + 'px') {
+                    board.removeChild(stoneElements[i]);
+                    break;
+                }
+            }
+
+            var directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+            for (var i = 0; i < directions.length; i++) {
+                var newX = x + directions[i][0];
+                var newY = y + directions[i][1];
+
+                if (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize && boardState[newX][newY] === color) {
+                    removeStones(newX, newY, color);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

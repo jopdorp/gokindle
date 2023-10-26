@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        #board { position: relative; width: 380px; height: 380px; border: 1px solid #000; }
+        .intersection { position: absolute; width: 20px; height: 20px; }
+        .stone { position: absolute; width: 20px; height: 20px; border-radius: 50%; }
+    </style>
+</head>
+<body>
+    <div id="board"></div>
+    <script>
+        var boardElement = document.getElementById('board');
+        var boardMatrix = Array.from(Array(19), () => Array(19).fill(null));
+        var uf = new UnionFind();
+        var koPoint = null;
+        var turn = 'black';
+
+        // Render the board
+        for (var y = 0; y < 19; y++) {
+            for (var x = 0; x < 19; x++) {
+                var intersection = document.createElement('div');
+                intersection.className = 'intersection';
+                intersection.style.left = x * 20 + 'px';
+                intersection.style.top = y * 20 + 'px';
+                intersection.dataset.x = x;
+                intersection.dataset.y = y;
+                boardElement.appendChild(intersection);
+            }
+        }
+
+        // Define the UnionFind class (as previously described)
+
+        // ... (Paste the UnionFind class definition here)
+// A simplified Union-Find data structure
+class UnionFind {
+    constructor() {
+        this.parent = {};
+        this.rank = {};
+        this.liberties = {};
+    }
+
+    find(x) {
+        if(this.parent[x] !== x) {
+            this.parent[x] = this.find(this.parent[x]);
+        }
+        return this.parent[x];
+    }
+
+    union(x, y) {
+        var rootX = this.find(x);
+        var rootY = this.find(y);
+
+        if(rootX === rootY) return;
+
+        if(this.rank[rootX] > this.rank[rootY]) {
+            this.parent[rootY] = rootX;
+            this.liberties[rootX] += this.liberties[rootY];
+        } else {
+            this.parent[rootX] = rootY;
+            this.liberties[rootY] += this.liberties[rootX];
+            if(this.rank[rootX] === this.rank[rootY]) {
+                this.rank[rootY]++;
+            }
+        }
+    }
+
+    addStone(x, y, neighbors) {
+        var id = x + ',' + y;
+        this.parent[id] = id;
+        this.rank[id] = 0;
+        this.liberties[id] = 0;
+
+        for(var neighbor of neighbors) {
+            if(this.parent[neighbor]) {
+                this.union(id, neighbor);
+            }
+        }
+    }
+
+    removeGroup(x, y) {
+        var root = this.find(x + ',' + y);
+        for(var id in this.parent) {
+            if(this.find(id) === root) {
+                delete this.parent[id];
+                // Remove the stone from the board as well
+            }
+        }
+    }
+}
+
+var uf = new UnionFind();
+
+        function getNeighbors(x, y) {
+            var directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+            var neighbors = [];
+            for (var i = 0; i < directions.length; i++) {
+                var newX = x + directions[i][0];
+                var newY = y + directions[i][1];
+                if (newX >= 0 && newY >= 0 && newX < 19 && newY < 19) {
+                    neighbors.push([newX, newY]);
+                }
+            }
+            return neighbors;
+        }
+
+        function placeStone(x, y, color) {
+            var id = x + ',' + y;
+            if (boardMatrix[y][x] || koPoint === id) return false;  // Intersection is occupied or Ko point
+
+            var neighbors = getNeighbors(x, y);
+            uf.addStone(x, y, neighbors);
+
+            var captured = false;
+            for (var neighbor of neighbors) {
+                var neighborColor = boardMatrix[neighbor[1]][neighbor[0]];
+                if (neighborColor && neighborColor !== color) {
+                    var root = uf.find(neighbor.join(','));
+                    if (uf.liberties[root] === 0) {
+                        uf.removeGroup(neighbor[0], neighbor[1]);
+                        captured = true;
+                    }
+                }
+            }
+
+            var newRoot = uf.find(id);
+            if (!captured && uf.liberties[newRoot] === 0) {
+                uf.removeGroup(x, y);  // Suicide move, remove the newly placed stone
+                return false;
+            }
+
+            boardMatrix[y][x] = color;
+            koPoint = captured ? id : null;
+            turn = (color === 'black') ? 'white' : 'black';
+            return true;
+        }
+
+        boardElement.addEventListener('click', function(e) {
+            var x = parseInt(e.target.dataset.x, 10);
+            var y = parseInt(e.target.dataset.y, 10);
+            if (isNaN(x) || isNaN(y)) return;  // Clicked outside a valid intersection
+            placeStone(x, y, turn);
+        });
+    </script>
+</body>
+</html>

@@ -39,6 +39,7 @@
 <body>
     <div class="board" id="board"></div>
     <button onclick="undo()">Undo</button>
+    <button onclick="downloadSgf()">Download SGF</button>
 
     <script>
         var boardSize = 19;
@@ -225,6 +226,36 @@
             }
         }
 
+        function exportSgf() {
+            var sgf = '(;FF[4]GM[1]SZ[' + boardSize + ']PB[Black]PW[White]KM[7.5]';
+
+            for (var i = 0; i < undoStack.length; i++) {
+                var state = undoStack[i];
+                if (state.stone) {
+                    var x = state.stone.style.top.slice(0, -2) / cellSize;
+                    var y = state.stone.style.left.slice(0, -2) / cellSize;
+                    var color = state.stone.classList.contains('black') ? 'B' : 'W';
+                    sgf += ';' + color + '[' + (18 - String.fromCharCode(97 + y)) + String.fromCharCode(97 + (boardSize - x - 1)) + ']';
+                }
+            }
+
+            sgf += ')';
+
+            return sgf;
+        }
+
+        function downloadSgf() {
+            var sgf = exportSgf();
+            var blob = new Blob([sgf], { type: 'text/plain' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'game.sgf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
     </script>
 </body>
 </html>

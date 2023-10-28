@@ -19,13 +19,12 @@
         }
 
         .stone {
-            width: 28px;
-            height: 28px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             position: absolute;
             top: 50%;
             left: 50%;
-            /* transform: translate(-50%, -50%); */
         }
 
         .black {
@@ -34,7 +33,6 @@
 
         .white {
             background-color: #fff;
-            border: 1px solid #000;
         }
     </style>
 </head>
@@ -79,10 +77,8 @@
 
         board.addEventListener('click', function(e) {
             var rect = board.getBoundingClientRect();
-            var borderWidth = parseInt(getComputedStyle(board).borderWidth);
-            var lineSize = parseInt(getComputedStyle(board).getPropertyValue('border-left-width'));
-            var x = Math.floor((e.clientX - rect.left - borderWidth - lineSize * 0.5 + 0.5) / cellSize);
-            var y = Math.floor((e.clientY - rect.top - borderWidth - lineSize * 0.5 + 0.5) / cellSize);
+            var x = Math.floor((e.clientX - rect.left) / cellSize);
+            var y = Math.floor((e.clientY - rect.top) / cellSize);
             placeStone(y, x, currentPlayer);
         });
 

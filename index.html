@@ -47,7 +47,6 @@
         var board = document.getElementById('board');
         var currentPlayer = 'black';
         var boardState = [];
-        var lastBoardState = null;
         var undoStack = [];
 
         for (var i = 0; i < boardSize; i++) {
@@ -88,19 +87,25 @@
         function placeStone(x, y, color) {
             if (boardState[x][y] !== null) return;
 
-            // Clone current state for ko rule check
-            var tempState = JSON.parse(JSON.stringify(boardState));
+            var tempState = boardState.map(row => row.slice());
 
             boardState[x][y] = color;
-
             var captures = checkCaptures(x, y, color);
-            var capturedStones = [];
 
-            if (captures === 0 && hasLiberties(x, y, [], color) === 0) {
+            if (captures.length === 0 && hasLiberties(x, y, [], color) === 0) {
                 // Suicide move
                 boardState = tempState;
                 return;
             }
+
+            if (koCheck(boardState)) {
+                boardState = tempState;
+                return;
+            }
+
+            captures.forEach(removeStone);
+
+            lastPlacedState = tempState;
 
             var stone = document.createElement('div');
             stone.className = 'stone ' + color;
@@ -108,56 +113,48 @@
             stone.style.left = (y * cellSize) + 'px';
             stone.style.width = cellSize + 'px';
             stone.style.height = cellSize + 'px';
-
             board.appendChild(stone);
 
             currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
 
-            // Ko rule: Check if the new board state is the same as the last state
-            if (lastBoardState && JSON.stringify(boardState) === JSON.stringify(lastBoardState.state)) {
-                board.removeChild(stone);
-                boardState = tempState;
-                return;
-            }
-
-            // Add captured stones to last state
-            for (var i = 0; i < captures.length; i++) {
-                capturedStones.push({ x: captures[i].x, y: captures[i].y, color: captures[i].color });
-            }
-
-            // Add current state to undo stack
-            lastBoardState = { state: tempState, stone: stone, capturedStones: capturedStones };
-            undoStack.push(lastBoardState);
+            undoStack.push({ state: tempState, stone: stone, capturedStones: captures });
         }
+
+        function koCheck(state) {
+            if(undoStack.length === 0){
+                return false;
+            }
+            return JSON.stringify(undoStack[undoStack.length-1].state) === JSON.stringify(state);
+        }
+
 
         function undo() {
             if (undoStack.length === 0) return;
 
-            // Remove last state from undo stack
             var lastState = undoStack.pop();
-            boardState = JSON.parse(JSON.stringify(lastState.state));
-            if (lastState.stone) {
-                board.removeChild(lastState.stone);
+            boardState = lastState.state;
+
+            var stoneElements = board.querySelectorAll('.stone');
+            stoneElements.forEach(el => board.removeChild(el));
+
+            for (let i = 0; i < boardSize; i++) {
+                for (let j = 0; j < boardSize; j++) {
+                    let color = boardState[i][j];
+                    if (color) {
+                        var stone = document.createElement('div');
+                        stone.className = 'stone ' + color;
+                        stone.style.top = (i * cellSize) + 'px';
+                        stone.style.left = (j * cellSize) + 'px';
+                        stone.style.width = cellSize + 'px';
+                        stone.style.height = cellSize + 'px';
+                        board.appendChild(stone);
+                    }
+                }
             }
 
-            // restore captured stones
-            for (var i = 0; i < lastState.capturedStones.length; i++) {
-                var stone = document.createElement('div');
-                stone.className = 'stone ' + lastState.capturedStones[i].color;
-
-                stone.style.top = (lastState.capturedStones[i].x * cellSize) + 'px';
-                stone.style.left = (lastState.capturedStones[i].y * cellSize) + 'px';
-                stone.style.width = cellSize + 'px';
-                stone.style.height = cellSize + 'px';
-
-                board.appendChild(stone);
-                boardState[lastState.capturedStones[i].x][lastState.capturedStones[i].y] = lastState.capturedStones[i].color;
-            }
-
-
-            // Switch current player
             currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
         }
+
 
         function checkCaptures(x, y, color) {
             var capturedStones = [];
@@ -169,19 +166,21 @@
                 var newY = y + directions[i][1];
 
                 if (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize && boardState[newX][newY] === oppositeColor) {
+                    var stonesToRemove = [];
                     if (hasLiberties(newX, newY, [], oppositeColor) === 0) {
-                        var stonesToRemove = [];
                         gatherStones(newX, newY, oppositeColor, stonesToRemove);
                         capturedStones = capturedStones.concat(stonesToRemove);
-                        stonesToRemove.forEach(function(stone) {
-                            removeStones(stone.x, stone.y, oppositeColor);
-                        });
                     }
                 }
             }
 
+            capturedStones.forEach(stone => {
+                boardState[stone.x][stone.y] = null;
+            });
+
             return capturedStones;
         }
+
 
         function gatherStones(x, y, color, stonesList) {
             if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
@@ -214,7 +213,11 @@
                    hasLiberties(x, y + 1, visited, color);
         }
 
-        function removeStones(x, y, color) {
+        function removeStone(stone) {
+            var x = stone.x;
+            var y = stone.y;
+            var color = stone.color;
+
             boardState[x][y] = null;
 
             var stoneElements = board.querySelectorAll('.stone.' + color);

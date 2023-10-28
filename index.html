@@ -57,7 +57,8 @@
             params[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1] || '');
             }
         }
-        boardSize = parseInt(params['boardSize']) || 19;
+        var handicap = parseInt(params['handicap']) || 0;
+        var boardSize = parseInt(params['boardSize']) || 19;
 
 
         var cellSize = 30;
@@ -146,6 +147,28 @@
             var y = Math.floor((e.clientY - rect.top) / cellSize);
             placeStone(y, x, currentPlayer);
         });
+
+        if (handicap > 0) {
+            addHandicapStones(handicap);
+            currentPlayer = 'white';
+        }
+
+        function addHandicapStones(count) {
+            var positions = [];
+            if (boardSize === 19) {
+                positions = [[3, 3], [15, 15], [3, 15], [15, 3], [3, 9], [15, 9], [9, 3], [9, 15], [9, 9]];
+            } else if (boardSize === 13) {
+                positions = [[2, 2], [10, 10], [2, 10], [10, 2], [6, 6]];
+            } else if (boardSize === 9) {
+                positions = [[2, 2], [6, 6], [2, 6], [6, 2]];
+            }
+
+            for (var i = 0; i < count; i++) {
+                if (positions[i]) {
+                    placeStone(positions[i][0], positions[i][1], 'black');
+                }
+            }
+        }
 
         function placeStone(x, y, color) {
             if (boardState[x][y] !== null) return;

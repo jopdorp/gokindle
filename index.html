@@ -38,6 +38,7 @@
 </head>
 <body>
     <div class="board" id="board"></div>
+    <button onclick="undo()">Undo</button>
 
     <script>
         var boardSize = 19;
@@ -46,6 +47,7 @@
         var currentPlayer = 'black';
         var boardState = [];
         var lastBoardState = null;
+        var undoStack = [];
 
         for (var i = 0; i < boardSize; i++) {
             boardState[i] = [];
@@ -91,6 +93,7 @@
             boardState[x][y] = color;
 
             var captures = checkCaptures(x, y, color);
+            var capturedStones = [];
 
             if (captures === 0 && hasLiberties(x, y, [], color) === 0) {
                 // Suicide move
@@ -102,23 +105,61 @@
             stone.className = 'stone ' + color;
             stone.style.top = (x * cellSize) + 'px';
             stone.style.left = (y * cellSize) + 'px';
+            stone.style.width = cellSize + 'px';
+            stone.style.height = cellSize + 'px';
+
             board.appendChild(stone);
 
             currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
 
             // Ko rule: Check if the new board state is the same as the last state
-            if (lastBoardState && JSON.stringify(boardState) === JSON.stringify(lastBoardState)) {
+            if (lastBoardState && JSON.stringify(boardState) === JSON.stringify(lastBoardState.state)) {
                 board.removeChild(stone);
                 boardState = tempState;
-                currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';  // switch back
                 return;
             }
 
-            lastBoardState = tempState;
+            // Add captured stones to last state
+            for (var i = 0; i < captures.length; i++) {
+                capturedStones.push({ x: captures[i].x, y: captures[i].y, color: captures[i].color });
+            }
+
+            // Add current state to undo stack
+            lastBoardState = { state: tempState, stone: stone, capturedStones: capturedStones };
+            undoStack.push(lastBoardState);
+        }
+
+        function undo() {
+            if (undoStack.length === 0) return;
+
+            // Remove last state from undo stack
+            var lastState = undoStack.pop();
+            boardState = JSON.parse(JSON.stringify(lastState.state));
+            if (lastState.stone) {
+                board.removeChild(lastState.stone);
+            }
+
+            // restore captured stones
+            for (var i = 0; i < lastState.capturedStones.length; i++) {
+                var stone = document.createElement('div');
+                stone.className = 'stone ' + lastState.capturedStones[i].color;
+
+                stone.style.top = (lastState.capturedStones[i].x * cellSize) + 'px';
+                stone.style.left = (lastState.capturedStones[i].y * cellSize) + 'px';
+                stone.style.width = cellSize + 'px';
+                stone.style.height = cellSize + 'px';
+
+                board.appendChild(stone);
+                boardState[lastState.capturedStones[i].x][lastState.capturedStones[i].y] = lastState.capturedStones[i].color;
+            }
+
+
+            // Switch current player
+            currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
         }
 
         function checkCaptures(x, y, color) {
-            var captures = 0;
+            var capturedStones = [];
             var oppositeColor = (color === 'black') ? 'white' : 'black';
             var directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
@@ -128,13 +169,31 @@
 
                 if (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize && boardState[newX][newY] === oppositeColor) {
                     if (hasLiberties(newX, newY, [], oppositeColor) === 0) {
-                        removeStones(newX, newY, oppositeColor);
-                        captures++;
+                        var stonesToRemove = [];
+                        gatherStones(newX, newY, oppositeColor, stonesToRemove);
+                        capturedStones = capturedStones.concat(stonesToRemove);
+                        stonesToRemove.forEach(function(stone) {
+                            removeStones(stone.x, stone.y, oppositeColor);
+                        });
                     }
                 }
             }
 
-            return captures;
+            return capturedStones;
+        }
+
+        function gatherStones(x, y, color, stonesList) {
+            if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
+            if (boardState[x][y] !== color) return;
+            if (stonesList.some(function(stone) { return stone.x === x && stone.y === y; })) return;
+
+            stonesList.push({ x: x, y: y, color: color });
+
+            var directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+            for (var i = 0; i < directions.length; i++) {
+                var dir = directions[i];
+                gatherStones(x + dir[0], y + dir[1], color, stonesList);
+            }
         }
 
         function hasLiberties(x, y, visited, color) {
@@ -164,17 +223,8 @@
                     break;
                 }
             }
-
-            var directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-            for (var i = 0; i < directions.length; i++) {
-                var newX = x + directions[i][0];
-                var newY = y + directions[i][1];
-
-                if (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize && boardState[newX][newY] === color) {
-                    removeStones(newX, newY, color);
-                }
-            }
         }
+
     </script>
 </body>
 </html>

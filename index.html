@@ -235,7 +235,7 @@
                     var x = state.stone.style.top.slice(0, -2) / cellSize;
                     var y = state.stone.style.left.slice(0, -2) / cellSize;
                     var color = state.stone.classList.contains('black') ? 'B' : 'W';
-                    sgf += ';' + color + '[' + (18 - String.fromCharCode(97 + y)) + String.fromCharCode(97 + (boardSize - x - 1)) + ']';
+                    sgf += ';' + color + '[' + (String.fromCharCode(97 + y)) + String.fromCharCode(115 - (boardSize - x - 1)) + ']';
                 }
             }
 

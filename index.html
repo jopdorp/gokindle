@@ -87,7 +87,7 @@
         function placeStone(x, y, color) {
             if (boardState[x][y] !== null) return;
 
-            var tempState = boardState.map(row => row.slice());
+            var tempState = JSON.parse(JSON.stringify(boardState));
 
             boardState[x][y] = color;
             var captures = checkCaptures(x, y, color);

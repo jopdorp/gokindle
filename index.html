@@ -42,12 +42,20 @@
     <button onclick="downloadSgf()">Download SGF</button>
 
     <script>
-        var boardSize = 19;
+        var urlParams = new URLSearchParams(window.location.search);
+        var boardSize = parseInt(urlParams.get('boardSize')) || 19;
         var cellSize = 30;
         var board = document.getElementById('board');
+        board.style.width = (boardSize * cellSize) + 'px';
+        board.style.height = (boardSize * cellSize) + 'px';
+
         var currentPlayer = 'black';
         var boardState = [];
         var undoStack = [];
+        var oppositeColor = {
+            'black': 'white',
+            'white': 'black'
+        };
 
         for (var i = 0; i < boardSize; i++) {
             boardState[i] = [];
@@ -135,11 +143,11 @@
             boardState = lastState.state;
 
             var stoneElements = board.querySelectorAll('.stone');
-            stoneElements.forEach(el => board.removeChild(el));
+            stoneElements.forEach(function (el) { board.removeChild(el)});
 
-            for (let i = 0; i < boardSize; i++) {
-                for (let j = 0; j < boardSize; j++) {
-                    let color = boardState[i][j];
+            for (var i = 0; i < boardSize; i++) {
+                for (var j = 0; j < boardSize; j++) {
+                    var color = boardState[i][j];
                     if (color) {
                         var stone = document.createElement('div');
                         stone.className = 'stone ' + color;
@@ -158,23 +166,22 @@
 
         function checkCaptures(x, y, color) {
             var capturedStones = [];
-            var oppositeColor = (color === 'black') ? 'white' : 'black';
             var directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
             for (var i = 0; i < directions.length; i++) {
                 var newX = x + directions[i][0];
                 var newY = y + directions[i][1];
 
-                if (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize && boardState[newX][newY] === oppositeColor) {
+                if (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize && boardState[newX][newY] === oppositeColor[color]) {
                     var stonesToRemove = [];
-                    if (hasLiberties(newX, newY, [], oppositeColor) === 0) {
-                        gatherStones(newX, newY, oppositeColor, stonesToRemove);
+                    if (hasLiberties(newX, newY, [], oppositeColor[color]) === 0) {
+                        gatherStones(newX, newY, oppositeColor[color], stonesToRemove);
                         capturedStones = capturedStones.concat(stonesToRemove);
                     }
                 }
             }
 
-            capturedStones.forEach(stone => {
+            capturedStones.forEach(function (stone)  {
                 boardState[stone.x][stone.y] = null;
             });
 

@@ -61,13 +61,16 @@
 
 
         var cellSize = 30;
+        var margin = 0.06;
+
         var board = document.getElementById('board');
         var viewportWidth = window.innerWidth || 1300;
         var viewportHeight = window.innerHeight || 1300;
         var minDimension = Math.floor(Math.min(viewportWidth, viewportHeight) * 0.9);
-        board.style.width = minDimension + 'px';
-        board.style.height = board.style.width
         cellSize = Math.floor(minDimension / boardSize);
+        
+        board.style.width = Math.floor(minDimension/cellSize) * cellSize + 'px';
+        board.style.height = board.style.width
 
         var currentPlayer = 'black';
         var boardState = [];
@@ -103,7 +106,7 @@
                     board.appendChild(horizontalLine);
                 }
 
-                if (boardSize >= 9 && (i === 3 || i === boardSize - 4) && (j === 3 || j === boardSize - 4)) {
+                if (boardSize >= 13 && boardSize >= 9 && (i === 3 || i === boardSize - 4) && (j === 3 || j === boardSize - 4)) {
                     var dot = document.createElement('div');
                     dot.className = 'dot';
                     dot.style.width = (cellSize * 0.2) + 'px';
@@ -114,6 +117,17 @@
                     }
 
                 if (boardSize % 2 === 1 && i === Math.floor(boardSize / 2) && j === Math.floor(boardSize / 2)) {
+                    var dot = document.createElement('div');
+                    dot.className = 'dot';
+                    dot.style.width = (cellSize * 0.2) + 'px';
+                    dot.style.height = dot.style.width;
+                    dot.style.left = ((j + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                    dot.style.top = ((i + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                    board.appendChild(dot);
+                }
+
+                // Move outer dots one cell out for board sizes smaller than 13
+                if ( boardSize >= 9 && boardSize < 13 && (i === 2 || i === boardSize - 3) && (j === 2 || j === boardSize - 3)) {
                     var dot = document.createElement('div');
                     dot.className = 'dot';
                     dot.style.width = (cellSize * 0.2) + 'px';
@@ -158,10 +172,8 @@
 
             var stone = document.createElement('div');
             stone.className = 'stone ' + color;
-            stone.style.top = (x * cellSize) + 'px';
-            stone.style.left = (y * cellSize) + 'px';
-            stone.style.width = cellSize + 'px';
-            stone.style.height = cellSize + 'px';
+
+            var stone = createStone(x, y, color);
             board.appendChild(stone);
 
             currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
@@ -192,12 +204,7 @@
                 for (var j = 0; j < boardSize; j++) {
                     var color = boardState[i][j];
                     if (color) {
-                        var stone = document.createElement('div');
-                        stone.className = 'stone ' + color;
-                        stone.style.top = (i * cellSize) + 'px';
-                        stone.style.left = (j * cellSize) + 'px';
-                        stone.style.width = cellSize + 'px';
-                        stone.style.height = cellSize + 'px';
+                        var stone = createStone(i, j, color);
                         board.appendChild(stone);
                     }
                 }
@@ -206,7 +213,15 @@
             currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
         }
 
-
+        function createStone(x, y, color) {
+            var stone = document.createElement('div');
+            stone.className = 'stone ' + color;
+            stone.style.top = (x * cellSize + cellSize * margin) + 'px';
+            stone.style.left = (y * cellSize + cellSize * margin) + 'px';
+            stone.style.width = cellSize - cellSize * (margin * 2) + 'px';
+            stone.style.height = cellSize - cellSize * (margin * 2) + 'px';
+            return stone;
+        }
         function checkCaptures(x, y, color) {
             var capturedStones = [];
             var directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
@@ -230,7 +245,6 @@
 
             return capturedStones;
         }
-
 
         function gatherStones(x, y, color, stonesList) {
             if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
@@ -272,9 +286,8 @@
 
             var stoneElements = board.querySelectorAll('.stone.' + color);
             for (var i = 0; i < stoneElements.length; i++) {
-                if (stoneElements[i].style.top === (x * cellSize) + 'px' && stoneElements[i].style.left === (y * cellSize) + 'px') {
+                if (stoneElements[i].style.top === (x * cellSize + cellSize * margin) + 'px' && stoneElements[i].style.left === (y * cellSize + cellSize * margin) + 'px') {
                     board.removeChild(stoneElements[i]);
-                    break;
                 }
             }
         }

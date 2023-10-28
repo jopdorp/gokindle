@@ -7,9 +7,9 @@
         .board {
             width: 570px;
             height: 570px;
-            border: 1px solid #000;
+            border: none;
             position: relative;
-            background-color: #DDC;
+            background-color: #DDA15E;
             margin: 30px;
         }
 
@@ -25,7 +25,7 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            /* transform: translate(-50%, -50%); */
         }
 
         .black {
@@ -59,9 +59,9 @@
                     var verticalLine = document.createElement('div');
                     verticalLine.className = 'line';
                     verticalLine.style.width = '1px';
-                    verticalLine.style.height = (boardSize * cellSize) + 'px';
-                    verticalLine.style.left = (i * cellSize) + 'px';
-                    verticalLine.style.top = '0';
+                    verticalLine.style.height = ((boardSize -1) * cellSize) + 'px';
+                    verticalLine.style.left = cellSize * 0.5 + (i * cellSize) + 'px';
+                    verticalLine.style.top = cellSize * 0.5 + 'px';
                     board.appendChild(verticalLine);
                 }
 
@@ -69,25 +69,22 @@
                     var horizontalLine = document.createElement('div');
                     horizontalLine.className = 'line';
                     horizontalLine.style.height = '1px';
-                    horizontalLine.style.width = (boardSize * cellSize) + 'px';
-                    horizontalLine.style.top = (j * cellSize) + 'px';
-                    horizontalLine.style.left = '0';
+                    horizontalLine.style.width = ((boardSize -1) * cellSize) + 'px';
+                    horizontalLine.style.top = cellSize * 0.5 + (j * cellSize) + 'px';
+                    horizontalLine.style.left = cellSize * 0.5 + 'px';
                     board.appendChild(horizontalLine);
                 }
-
-                // Placing stones
-                (function(i, j) {
-                    board.addEventListener('click', function(e) {
-                        var rect = board.getBoundingClientRect();
-                        var x = e.clientX - rect.left;
-                        var y = e.clientY - rect.top;
-                        if (Math.abs(x - j * cellSize) <= cellSize / 2 && Math.abs(y - i * cellSize) <= cellSize / 2) {
-                            placeStone(i, j, currentPlayer);
-                        }
-                    });
-                })(i, j);
             }
         }
+
+        board.addEventListener('click', function(e) {
+            var rect = board.getBoundingClientRect();
+            var borderWidth = parseInt(getComputedStyle(board).borderWidth);
+            var lineSize = parseInt(getComputedStyle(board).getPropertyValue('border-left-width'));
+            var x = Math.floor((e.clientX - rect.left - borderWidth - lineSize * 0.5 + 0.5) / cellSize);
+            var y = Math.floor((e.clientY - rect.top - borderWidth - lineSize * 0.5 + 0.5) / cellSize);
+            placeStone(y, x, currentPlayer);
+        });
 
         function placeStone(x, y, color) {
             if (boardState[x][y] !== null) return;

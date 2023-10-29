@@ -361,7 +361,9 @@
             xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
             xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4 && xhr.status === 200) {
-                    console.log(JSON.parse(xhr.responseText));
+                    console.log("success");
+                }else{
+                    console.log("failed");
                 }
             };
             xhr.send(JSON.stringify({ sgfData: sgf, recipient: recipient }));

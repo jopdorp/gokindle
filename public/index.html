@@ -48,7 +48,17 @@
     <button onclick="downloadSgf()">Download SGF</button>
     <input type="email" id="recipient-email" placeholder="Recipient Email">
     <button onclick="sendSgfByEmail()">Send SGF by Email</button>
-
+    <div>
+        <label for="board-size">Board Size:</label>
+        <input type="number" id="board-size" name="board-size" value="19">
+    </div>
+    <div>
+        <label for="handicap">Handicap:</label>
+        <input type="number" id="handicap" name="handicap" value="0">
+    </div>
+    <div>
+        <button onclick="newGame()">New Game</button>
+    </div>
     <script>
         var query = window.location.search.substring(1);
         var params = {};
@@ -83,76 +93,103 @@
             'white': 'black'
         };
 
-        for (var i = 0; i < boardSize; i++) {
-            boardState[i] = [];
-            for (var j = 0; j < boardSize; j++) {
-                boardState[i][j] = null;
+        function initBoard(boardSize, handicap) {
+            board.innerHTML = "";
 
-                // Drawing the board lines
-                if (j === 0) {
-                    var verticalLine = document.createElement('div');
-                    verticalLine.className = 'line';
-                    verticalLine.style.width = '1px';
-                    verticalLine.style.height = ((boardSize -1) * cellSize) + 'px';
-                    verticalLine.style.left = cellSize * 0.5 + (i * cellSize) + 'px';
-                    verticalLine.style.top = cellSize * 0.5 + 'px';
-                    board.appendChild(verticalLine);
-                }
+            viewportWidth = window.innerWidth || 1300;
+            viewportHeight = window.innerHeight || 1300;
+            minDimension = Math.floor(Math.min(viewportWidth, viewportHeight) * 0.9);
+            cellSize = Math.floor(minDimension / boardSize);
+            
+            board.style.width = Math.floor(minDimension/cellSize) * cellSize + 'px';
+            board.style.height = board.style.width
 
-                if (i === 0) {
-                    var horizontalLine = document.createElement('div');
-                    horizontalLine.className = 'line';
-                    horizontalLine.style.height = '1px';
-                    horizontalLine.style.width = ((boardSize -1) * cellSize) + 'px';
-                    horizontalLine.style.top = cellSize * 0.5 + (j * cellSize) + 'px';
-                    horizontalLine.style.left = cellSize * 0.5 + 'px';
-                    board.appendChild(horizontalLine);
-                }
+            currentPlayer = 'black';
+            boardState = [];
+            undoStack = [];
+            oppositeColor = {
+                'black': 'white',
+                'white': 'black'
+            };
+            for (var i = 0; i < boardSize; i++) {
+                boardState[i] = [];
+                for (var j = 0; j < boardSize; j++) {
+                    boardState[i][j] = null;
 
-                if (boardSize >= 13 && boardSize >= 9 && (i === 3 || i === boardSize - 4) && (j === 3 || j === boardSize - 4)) {
-                    var dot = document.createElement('div');
-                    dot.className = 'dot';
-                    dot.style.width = (cellSize * 0.2) + 'px';
-                    dot.style.height = dot.style.width;
-                    dot.style.left = ((j + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
-                    dot.style.top = ((i + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
-                    board.appendChild(dot);
+                    // Drawing the board lines
+                    if (j === 0) {
+                        var verticalLine = document.createElement('div');
+                        verticalLine.className = 'line';
+                        verticalLine.style.width = '1px';
+                        verticalLine.style.height = ((boardSize -1) * cellSize) + 'px';
+                        verticalLine.style.left = cellSize * 0.5 + (i * cellSize) + 'px';
+                        verticalLine.style.top = cellSize * 0.5 + 'px';
+                        board.appendChild(verticalLine);
                     }
 
-                if (boardSize % 2 === 1 && i === Math.floor(boardSize / 2) && j === Math.floor(boardSize / 2)) {
-                    var dot = document.createElement('div');
-                    dot.className = 'dot';
-                    dot.style.width = (cellSize * 0.2) + 'px';
-                    dot.style.height = dot.style.width;
-                    dot.style.left = ((j + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
-                    dot.style.top = ((i + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
-                    board.appendChild(dot);
-                }
+                    if (i === 0) {
+                        var horizontalLine = document.createElement('div');
+                        horizontalLine.className = 'line';
+                        horizontalLine.style.height = '1px';
+                        horizontalLine.style.width = ((boardSize -1) * cellSize) + 'px';
+                        horizontalLine.style.top = cellSize * 0.5 + (j * cellSize) + 'px';
+                        horizontalLine.style.left = cellSize * 0.5 + 'px';
+                        board.appendChild(horizontalLine);
+                    }
 
-                // Move outer dots one cell out for board sizes smaller than 13
-                if ( boardSize >= 9 && boardSize < 13 && (i === 2 || i === boardSize - 3) && (j === 2 || j === boardSize - 3)) {
-                    var dot = document.createElement('div');
-                    dot.className = 'dot';
-                    dot.style.width = (cellSize * 0.2) + 'px';
-                    dot.style.height = dot.style.width;
-                    dot.style.left = ((j + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
-                    dot.style.top = ((i + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
-                    board.appendChild(dot);
+                    if (boardSize >= 13 && boardSize >= 9 && (i === 3 || i === boardSize - 4) && (j === 3 || j === boardSize - 4)) {
+                        var dot = document.createElement('div');
+                        dot.className = 'dot';
+                        dot.style.width = (cellSize * 0.2) + 'px';
+                        dot.style.height = dot.style.width;
+                        dot.style.left = ((j + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                        dot.style.top = ((i + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                        board.appendChild(dot);
+                        }
+
+                    if (boardSize % 2 === 1 && i === Math.floor(boardSize / 2) && j === Math.floor(boardSize / 2)) {
+                        var dot = document.createElement('div');
+                        dot.className = 'dot';
+                        dot.style.width = (cellSize * 0.2) + 'px';
+                        dot.style.height = dot.style.width;
+                        dot.style.left = ((j + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                        dot.style.top = ((i + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                        board.appendChild(dot);
+                    }
+
+                    // Move outer dots one cell out for board sizes smaller than 13
+                    if ( boardSize >= 9 && boardSize < 13 && (i === 2 || i === boardSize - 3) && (j === 2 || j === boardSize - 3)) {
+                        var dot = document.createElement('div');
+                        dot.className = 'dot';
+                        dot.style.width = (cellSize * 0.2) + 'px';
+                        dot.style.height = dot.style.width;
+                        dot.style.left = ((j + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                        dot.style.top = ((i + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                        board.appendChild(dot);
+                    }
+                    
                 }
-                
+            }
+
+            board.addEventListener('click', function(e) {
+                var rect = board.getBoundingClientRect();
+                var x = Math.floor((e.clientX - rect.left) / cellSize);
+                var y = Math.floor((e.clientY - rect.top) / cellSize);
+                placeStone(y, x, currentPlayer);
+            });
+
+            if (handicap > 0) {
+                addHandicapStones(handicap);
+                currentPlayer = 'white';
             }
         }
 
-        board.addEventListener('click', function(e) {
-            var rect = board.getBoundingClientRect();
-            var x = Math.floor((e.clientX - rect.left) / cellSize);
-            var y = Math.floor((e.clientY - rect.top) / cellSize);
-            placeStone(y, x, currentPlayer);
-        });
+        initBoard(boardSize, handicap);
 
-        if (handicap > 0) {
-            addHandicapStones(handicap);
-            currentPlayer = 'white';
+        function newGame() {
+            boardSize = parseInt(document.getElementById("board-size").value);
+            handicap = parseInt(document.getElementById("handicap").value);
+            initBoard(boardSize, handicap);
         }
 
         function addHandicapStones(count) {

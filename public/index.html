@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Go Game</title>
+    <style>
+        .board {
+            width: 570px;
+            height: 570px;
+            border: none;
+            position: relative;
+            background-color: #DDA15E;
+            margin: 30px;
+        }
+
+        .line {
+            position: absolute;
+            background-color: #000;
+        }
+
+        .stone {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+        }
+
+        .black {
+            background-color: #000;
+        }
+
+        .white {
+            background-color: #fff;
+        }
+
+        .dot {
+            position: absolute;
+            background-color: #000;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div class="board" id="board"></div>
+    <button onclick="undo()">Undo</button>
+    <button onclick="downloadSgf()">Download SGF</button>
+    <input type="email" id="recipient-email" placeholder="Recipient Email">
+    <button onclick="sendSgfByEmail()">Send SGF by Email</button>
+
+    <script>
+        var query = window.location.search.substring(1);
+        var params = {};
+        if (query) {
+            var pairs = query.split('&');
+            for (var i = 0; i < pairs.length; i++) {
+            var pair = pairs[i].split('=');
+            params[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1] || '');
+            }
+        }
+        var handicap = parseInt(params['handicap']) || 0;
+        var boardSize = parseInt(params['boardSize']) || 19;
+
+
+        var cellSize = 30;
+        var margin = 0.06;
+
+        var board = document.getElementById('board');
+        var viewportWidth = window.innerWidth || 1300;
+        var viewportHeight = window.innerHeight || 1300;
+        var minDimension = Math.floor(Math.min(viewportWidth, viewportHeight) * 0.9);
+        cellSize = Math.floor(minDimension / boardSize);
+        
+        board.style.width = Math.floor(minDimension/cellSize) * cellSize + 'px';
+        board.style.height = board.style.width
+
+        var currentPlayer = 'black';
+        var boardState = [];
+        var undoStack = [];
+        var oppositeColor = {
+            'black': 'white',
+            'white': 'black'
+        };
+
+        for (var i = 0; i < boardSize; i++) {
+            boardState[i] = [];
+            for (var j = 0; j < boardSize; j++) {
+                boardState[i][j] = null;
+
+                // Drawing the board lines
+                if (j === 0) {
+                    var verticalLine = document.createElement('div');
+                    verticalLine.className = 'line';
+                    verticalLine.style.width = '1px';
+                    verticalLine.style.height = ((boardSize -1) * cellSize) + 'px';
+                    verticalLine.style.left = cellSize * 0.5 + (i * cellSize) + 'px';
+                    verticalLine.style.top = cellSize * 0.5 + 'px';
+                    board.appendChild(verticalLine);
+                }
+
+                if (i === 0) {
+                    var horizontalLine = document.createElement('div');
+                    horizontalLine.className = 'line';
+                    horizontalLine.style.height = '1px';
+                    horizontalLine.style.width = ((boardSize -1) * cellSize) + 'px';
+                    horizontalLine.style.top = cellSize * 0.5 + (j * cellSize) + 'px';
+                    horizontalLine.style.left = cellSize * 0.5 + 'px';
+                    board.appendChild(horizontalLine);
+                }
+
+                if (boardSize >= 13 && boardSize >= 9 && (i === 3 || i === boardSize - 4) && (j === 3 || j === boardSize - 4)) {
+                    var dot = document.createElement('div');
+                    dot.className = 'dot';
+                    dot.style.width = (cellSize * 0.2) + 'px';
+                    dot.style.height = dot.style.width;
+                    dot.style.left = ((j + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                    dot.style.top = ((i + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                    board.appendChild(dot);
+                    }
+
+                if (boardSize % 2 === 1 && i === Math.floor(boardSize / 2) && j === Math.floor(boardSize / 2)) {
+                    var dot = document.createElement('div');
+                    dot.className = 'dot';
+                    dot.style.width = (cellSize * 0.2) + 'px';
+                    dot.style.height = dot.style.width;
+                    dot.style.left = ((j + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                    dot.style.top = ((i + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                    board.appendChild(dot);
+                }
+
+                // Move outer dots one cell out for board sizes smaller than 13
+                if ( boardSize >= 9 && boardSize < 13 && (i === 2 || i === boardSize - 3) && (j === 2 || j === boardSize - 3)) {
+                    var dot = document.createElement('div');
+                    dot.className = 'dot';
+                    dot.style.width = (cellSize * 0.2) + 'px';
+                    dot.style.height = dot.style.width;
+                    dot.style.left = ((j + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                    dot.style.top = ((i + 1) * cellSize) - (cellSize * 0.6) + 1 + 'px';
+                    board.appendChild(dot);
+                }
+                
+            }
+        }
+
+        board.addEventListener('click', function(e) {
+            var rect = board.getBoundingClientRect();
+            var x = Math.floor((e.clientX - rect.left) / cellSize);
+            var y = Math.floor((e.clientY - rect.top) / cellSize);
+            placeStone(y, x, currentPlayer);
+        });
+
+        if (handicap > 0) {
+            addHandicapStones(handicap);
+            currentPlayer = 'white';
+        }
+
+        function addHandicapStones(count) {
+            var positions = [];
+            if (boardSize === 19) {
+                positions = [[3, 3], [15, 15], [3, 15], [15, 3], [3, 9], [15, 9], [9, 3], [9, 15], [9, 9]];
+            } else if (boardSize === 13) {
+                positions = [[2, 2], [10, 10], [2, 10], [10, 2], [6, 6]];
+            } else if (boardSize === 9) {
+                positions = [[2, 2], [6, 6], [2, 6], [6, 2]];
+            }
+
+            for (var i = 0; i < count; i++) {
+                if (positions[i]) {
+                    placeStone(positions[i][0], positions[i][1], 'black');
+                }
+            }
+        }
+
+        function placeStone(x, y, color) {
+            if (boardState[x][y] !== null) return;
+
+            var tempState = JSON.parse(JSON.stringify(boardState));
+
+            boardState[x][y] = color;
+            var captures = checkCaptures(x, y, color);
+
+            if (captures.length === 0 && hasLiberties(x, y, [], color) === 0) {
+                // Suicide move
+                boardState = tempState;
+                return;
+            }
+
+            if (koCheck(boardState)) {
+                boardState = tempState;
+                return;
+            }
+
+            captures.forEach(removeStone);
+
+            lastPlacedState = tempState;
+
+            var stone = document.createElement('div');
+            stone.className = 'stone ' + color;
+
+            var stone = createStone(x, y, color);
+            board.appendChild(stone);
+
+            currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
+
+            undoStack.push({ state: tempState, stone: stone, capturedStones: captures });
+        }
+
+        function koCheck(state) {
+            if(undoStack.length === 0){
+                return false;
+            }
+            return JSON.stringify(undoStack[undoStack.length-1].state) === JSON.stringify(state);
+        }
+
+
+        function undo() {
+            if (undoStack.length === 0) return;
+
+            var lastState = undoStack.pop();
+            boardState = lastState.state;
+
+            var stoneElements = board.querySelectorAll('.stone');
+            Array.prototype.slice.call(stoneElements).forEach(function(el) {
+                board.removeChild(el);
+            });
+
+            for (var i = 0; i < boardSize; i++) {
+                for (var j = 0; j < boardSize; j++) {
+                    var color = boardState[i][j];
+                    if (color) {
+                        var stone = createStone(i, j, color);
+                        board.appendChild(stone);
+                    }
+                }
+            }
+
+            currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
+        }
+
+        function createStone(x, y, color) {
+            var stone = document.createElement('div');
+            stone.className = 'stone ' + color;
+            stone.style.top = (x * cellSize + cellSize * margin) + 'px';
+            stone.style.left = (y * cellSize + cellSize * margin) + 'px';
+            stone.style.width = cellSize - cellSize * (margin * 2) + 'px';
+            stone.style.height = cellSize - cellSize * (margin * 2) + 'px';
+            return stone;
+        }
+        function checkCaptures(x, y, color) {
+            var capturedStones = [];
+            var directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+            for (var i = 0; i < directions.length; i++) {
+                var newX = x + directions[i][0];
+                var newY = y + directions[i][1];
+
+                if (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize && boardState[newX][newY] === oppositeColor[color]) {
+                    var stonesToRemove = [];
+                    if (hasLiberties(newX, newY, [], oppositeColor[color]) === 0) {
+                        gatherStones(newX, newY, oppositeColor[color], stonesToRemove);
+                        capturedStones = capturedStones.concat(stonesToRemove);
+                    }
+                }
+            }
+
+            capturedStones.forEach(function (stone)  {
+                boardState[stone.x][stone.y] = null;
+            });
+
+            return capturedStones;
+        }
+
+        function gatherStones(x, y, color, stonesList) {
+            if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
+            if (boardState[x][y] !== color) return;
+            if (stonesList.some(function(stone) { return stone.x === x && stone.y === y; })) return;
+
+            stonesList.push({ x: x, y: y, color: color });
+
+            var directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+            for (var i = 0; i < directions.length; i++) {
+                var dir = directions[i];
+                gatherStones(x + dir[0], y + dir[1], color, stonesList);
+            }
+        }
+
+        function hasLiberties(x, y, visited, color) {
+            if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return 0;
+
+            if (visited.some(function(point) { return point[0] === x && point[1] === y; })) return 0;
+
+            if (boardState[x][y] === null) return 1;
+
+            if (boardState[x][y] !== color) return 0;
+
+            visited.push([x, y]);
+
+            return hasLiberties(x - 1, y, visited, color) ||
+                   hasLiberties(x + 1, y, visited, color) ||
+                   hasLiberties(x, y - 1, visited, color) ||
+                   hasLiberties(x, y + 1, visited, color);
+        }
+
+        function removeStone(stone) {
+            var x = stone.x;
+            var y = stone.y;
+            var color = stone.color;
+
+            boardState[x][y] = null;
+
+            var stoneElements = board.querySelectorAll('.stone.' + color);
+            for (var i = 0; i < stoneElements.length; i++) {
+                if (stoneElements[i].style.top === (x * cellSize + cellSize * margin) + 'px' && stoneElements[i].style.left === (y * cellSize + cellSize * margin) + 'px') {
+                    board.removeChild(stoneElements[i]);
+                }
+            }
+        }
+
+        function exportSgf() {
+            var sgf = '(;FF[4]GM[1]SZ[' + boardSize + ']PB[Black]PW[White]KM[7.5]';
+
+            for (var i = 0; i < undoStack.length; i++) {
+                var state = undoStack[i];
+                if (state.stone) {
+                    var x = state.stone.style.top.slice(0, -2) / cellSize;
+                    var y = state.stone.style.left.slice(0, -2) / cellSize;
+                    var color = state.stone.classList.contains('black') ? 'B' : 'W';
+                    sgf += ';' + color + '[' + (String.fromCharCode(97 + y)) + String.fromCharCode(115 - (boardSize - x - 1)) + ']';
+                }
+            }
+
+            sgf += ')';
+
+            return sgf;
+        }
+
+        function downloadSgf() {
+            var sgf = exportSgf();
+            var blob = new Blob([sgf], { type: 'text/plain' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'game.sgf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Replace the downloadSgf function with the following:
+        function sendSgfByEmail() {
+            var recipient = document.getElementById('recipient-email').value;
+            if (!recipient) {
+                alert('Please enter the recipient email address.');
+                return;
+            }
+            var sgf = exportSgf();
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/send-sgf", true);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    console.log(JSON.parse(xhr.responseText));
+                }
+            };
+            xhr.send(JSON.stringify({ sgfData: sgf, recipient: recipient }));
+        }
+
+
+    </script>
+</body>
+</html>

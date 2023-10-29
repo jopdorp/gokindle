@@ -1,0 +1,25 @@
+{
+  "name": "gokindle",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "start": "node -r dotenv/config app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jopdorp/gokindle.git"
+  },
+  "author": "Jegor van Opdorp",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/jopdorp/gokindle/issues"
+  },
+  "homepage": "https://github.com/jopdorp/gokindle#readme",
+  "dependencies": {
+    "@sendgrid/mail": "^7.7.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2"
+  }
+}
